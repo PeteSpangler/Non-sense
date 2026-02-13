@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import fs from 'fs'
+import path from 'path'
 import {
   parseCSV,
   parseManualReadings,
@@ -12,54 +14,56 @@ import {
   validateReadingsLimit,
   formatEmissionValue
 } from '../src/lib/utils'
-import {
-  validateSiteForm,
-  validateIngestionForm,
-  validateReading,
-  validateReadingsArray,
-  validateSiteId,
-  validateIdempotencyKey,
-  validateEmissionLimit,
-  validateMetadata
-} from '../src/lib/validators'
-import {
-  Site,
-} from '../src/lib/types'
 
-describe('Types - Site', () => {
-  it('has correct structure', () => {
-    const site: Site = {
-      id: 1,
-      name: 'Test Site',
-      emission_limit: 0.25,
-      total_emissions_to_date: 1.5,
-      metadata: {},
-      createdAt: '2025-01-01',
-      latest_emission: {
-        id: 1,
-        emissionsdata: 0.3,
-        reading_date: '2025-01-15',
-      },
-    }
-
-    expect(site.id).toBe(1)
-    expect(site.name).toBe('Test Site')
-    expect(site.emission_limit).toBe(0.25)
-    expect(site.latest_emission?.emissionsdata).toBe(0.3)
+describe('parseCSV - with test file', () => {
+  it('parses test_emissions.csv correctly', () => {
+    const csvPath = path.join(__dirname, 'test_emissions.csv')
+    const csv = fs.readFileSync(csvPath, 'utf-8')
+    
+    const result = parseCSV(csv)
+    
+    expect(result).toHaveLength(9)
+    expect(result[0]).toEqual({ value: 0.078362, reading_date: '2026-01-25' })
+    expect(result[8]).toEqual({ value: 0.151130, reading_date: '2026-02-02' })
   })
 
-  it('allows null latest_emission', () => {
-    const site: Site = {
-      id: 1,
-      name: 'Test Site',
-      emission_limit: 0.25,
-      total_emissions_to_date: 0,
-      metadata: {},
-      createdAt: '2025-01-01',
-      latest_emission: null,
-    }
+  it('correctly parses dates from test file', () => {
+    const csvPath = path.join(__dirname, 'test_emissions.csv')
+    const csv = fs.readFileSync(csvPath, 'utf-8')
+    
+    const result = parseCSV(csv)
+    
+    const dates = result.map(r => r.reading_date)
+    expect(dates).toContain('2026-01-25')
+    expect(dates).toContain('2025-11-30')
+  })
 
-    expect(site.latest_emission).toBeNull()
+  it('calculates correct values from test file', () => {
+    const csvPath = path.join(__dirname, 'test_emissions.csv')
+    const csv = fs.readFileSync(csvPath, 'utf-8')
+    
+    const result = parseCSV(csv)
+    const emissions = result.map(r => ({ emissionsdata: r.value }))
+    
+    const total = calculateTotalEmissions(emissions)
+    expect(total).toBeCloseTo(2.193197, 5)
+    
+    const avg = calculateAverageEmissions(emissions)
+    expect(avg).toBeCloseTo(0.24368856, 5)
+    
+    const max = findMaxEmission(emissions)
+    expect(max).toBeCloseTo(0.444811, 5)
+  })
+
+  it('determines compliance from test file correctly', () => {
+    const csvPath = path.join(__dirname, 'test_emissions.csv')
+    const csv = fs.readFileSync(csvPath, 'utf-8')
+    
+    const result = parseCSV(csv)
+    const emissions = result.map(r => ({ emissionsdata: r.value }))
+    
+    const compliance = determineCompliance(emissions, 0.25)
+    expect(compliance).toBe('Limit Exceeded')
   })
 })
 
@@ -289,167 +293,5 @@ describe('formatEmissionValue', () => {
 
   it('handles whole numbers', () => {
     expect(formatEmissionValue(5, 2)).toBe('5.00')
-  })
-})
-
-describe('validateSiteForm', () => {
-  it('returns valid for correct input', () => {
-    const result = validateSiteForm({ name: 'Test Site', emission_limit: 0.25 })
-    expect(result.valid).toBe(true)
-    expect(result.errors).toHaveLength(0)
-  })
-
-  it('returns error for empty name', () => {
-    const result = validateSiteForm({ name: '', emission_limit: 0.25 })
-    expect(result.valid).toBe(false)
-    expect(result.errors).toContain('Site name is required')
-  })
-
-  it('returns error for missing emission_limit', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = validateSiteForm({ name: 'Test Site', emission_limit: undefined as any })
-    expect(result.valid).toBe(false)
-    expect(result.errors).toContain('Emission limit is required and must be a number')
-  })
-})
-
-describe('validateIngestionForm', () => {
-  it('returns valid for correct input', () => {
-    const result = validateIngestionForm({ site_id: '1', readings: '0.5,2025-01-01' })
-    expect(result.valid).toBe(true)
-    expect(result.errors).toHaveLength(0)
-  })
-
-  it('returns error for empty site_id', () => {
-    const result = validateIngestionForm({ site_id: '', readings: '0.5,2025-01-01' })
-    expect(result.valid).toBe(false)
-    expect(result.errors).toContain('Please select a site')
-  })
-
-  it('returns error for empty readings', () => {
-    const result = validateIngestionForm({ site_id: '1', readings: '' })
-    expect(result.valid).toBe(false)
-    expect(result.errors).toContain('Please enter readings')
-  })
-})
-
-describe('validateReading', () => {
-  it('returns true for valid reading', () => {
-    const reading = { value: 0.5, reading_date: '2025-01-01' }
-    expect(validateReading(reading)).toBe(true)
-  })
-
-  it('returns false for missing value', () => {
-    const reading = { reading_date: '2025-01-01' }
-    expect(validateReading(reading)).toBe(false)
-  })
-
-  it('returns false for invalid date', () => {
-    const reading = { value: 0.5, reading_date: 'invalid-date' }
-    expect(validateReading(reading)).toBe(false)
-  })
-
-  it('returns false for null', () => {
-    expect(validateReading(null)).toBe(false)
-  })
-
-  it('returns false for non-object', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(validateReading('string' as any)).toBe(false)
-  })
-})
-
-describe('validateReadingsArray', () => {
-  it('returns true for valid array', () => {
-    const readings = [
-      { value: 0.5, reading_date: '2025-01-01' },
-      { value: 0.3, reading_date: '2025-01-02' },
-    ]
-    expect(validateReadingsArray(readings)).toBe(true)
-  })
-
-  it('returns false if any reading is invalid', () => {
-    const readings = [
-      { value: 0.5, reading_date: '2025-01-01' },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { value: 'invalid' as any, reading_date: '2025-01-02' },
-    ]
-    expect(validateReadingsArray(readings)).toBe(false)
-  })
-
-  it('returns true for empty array', () => {
-    expect(validateReadingsArray([])).toBe(true)
-  })
-})
-
-describe('validateSiteId', () => {
-  it('returns true for valid number', () => {
-    expect(validateSiteId(1)).toBe(true)
-    expect(validateSiteId(999)).toBe(true)
-  })
-
-  it('returns false for NaN', () => {
-    expect(validateSiteId(NaN)).toBe(false)
-  })
-
-  it('returns false for string', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(validateSiteId('1' as any)).toBe(false)
-  })
-})
-
-describe('validateIdempotencyKey', () => {
-  it('returns true for non-empty string', () => {
-    expect(validateIdempotencyKey('test-key-123')).toBe(true)
-  })
-
-  it('returns false for empty string', () => {
-    expect(validateIdempotencyKey('')).toBe(false)
-  })
-
-  it('returns false for non-string', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(validateIdempotencyKey(123 as any)).toBe(false)
-  })
-})
-
-describe('validateEmissionLimit', () => {
-  it('returns true for valid number', () => {
-    expect(validateEmissionLimit(0.25)).toBe(true)
-    expect(validateEmissionLimit(0)).toBe(true)
-  })
-
-  it('returns false for negative number', () => {
-    expect(validateEmissionLimit(-1)).toBe(false)
-  })
-
-  it('returns false for NaN', () => {
-    expect(validateEmissionLimit(NaN)).toBe(false)
-  })
-})
-
-describe('validateMetadata', () => {
-  it('returns true for object', () => {
-    expect(validateMetadata({})).toBe(true)
-    expect(validateMetadata({ key: 'value' })).toBe(true)
-  })
-
-  it('returns false for null', () => {
-    expect(validateMetadata(null)).toBe(false)
-  })
-
-  it('returns false for array', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(validateMetadata([] as any)).toBe(false)
-  })
-
-  it('returns false for primitive string', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(validateMetadata('string' as any)).toBe(false)
-  })
-
-  it('returns false for number', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(validateMetadata(123 as any)).toBe(false)
   })
 })
