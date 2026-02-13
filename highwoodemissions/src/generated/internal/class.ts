@@ -23,7 +23,7 @@ const config: runtime.GetPrismaClientConfig = {
       "value": "prisma-client"
     },
     "output": {
-      "value": "/home/spang/src/Non-sense/highwoodemissions/src/generated",
+      "value": "/app/src/generated",
       "fromEnvVar": null
     },
     "config": {
@@ -32,12 +32,16 @@ const config: runtime.GetPrismaClientConfig = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "debian-openssl-3.0.x",
+        "value": "linux-musl-openssl-3.0.x",
         "native": true
+      },
+      {
+        "fromEnvVar": null,
+        "value": "linux-musl-openssl-3.0.x"
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/home/spang/src/Non-sense/highwoodemissions/prisma/schema.prisma",
+    "sourceFilePath": "/app/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativePath": "../../prisma",
@@ -47,6 +51,7 @@ const config: runtime.GetPrismaClientConfig = {
     "db"
   ],
   "activeProvider": "postgresql",
+  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
@@ -55,8 +60,8 @@ const config: runtime.GetPrismaClientConfig = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider = \"prisma-client\"\n  output   = \"../src/generated\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel Site {\n  id                      Int             @id @default(autoincrement())\n  name                    String\n  emission_limit          Float           @default(0)\n  metadata                Json            @default(\"{}\")\n  total_emissions_to_date Float           @default(0)\n  emissions               EmissionsData[]\n  createdAt               DateTime        @default(now())\n  updatedAt               DateTime        @updatedAt\n}\n\nmodel EmissionsData {\n  id             Int      @id @default(autoincrement())\n  site           Site     @relation(fields: [siteId], references: [id])\n  siteId         Int\n  emissionsdata  Float\n  reading_date   DateTime\n  idempotencyKey String?\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n\n  @@index([reading_date])\n  @@index([siteId])\n  @@index([idempotencyKey])\n}\n",
-  "inlineSchemaHash": "1507176bf4c4e330535212bc6a2bb6d5fd527926ddc95106dc1297a645d7470b",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../src/generated\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel Site {\n  id                      Int             @id @default(autoincrement())\n  name                    String\n  emission_limit          Float           @default(0)\n  metadata                Json            @default(\"{}\")\n  total_emissions_to_date Float           @default(0)\n  emissions               EmissionsData[]\n  createdAt               DateTime        @default(now())\n  updatedAt               DateTime        @updatedAt\n}\n\nmodel EmissionsData {\n  id             Int      @id @default(autoincrement())\n  site           Site     @relation(fields: [siteId], references: [id])\n  siteId         Int\n  emissionsdata  Float\n  reading_date   DateTime\n  idempotencyKey String?\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n\n  @@index([reading_date])\n  @@index([siteId])\n  @@index([idempotencyKey])\n}\n",
+  "inlineSchemaHash": "856546bdc2854052073b0e724b2343bff7e6f3504ea3402fb43814481a83c2ff",
   "copyEngine": true,
   "runtimeDataModel": {
     "models": {},

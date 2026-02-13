@@ -16,6 +16,7 @@ CREATE TABLE "EmissionsData" (
     "id" SERIAL NOT NULL,
     "siteId" INTEGER NOT NULL,
     "emissionsdata" DOUBLE PRECISION NOT NULL,
+    "reading_date" TIMESTAMP(3) NOT NULL,
     "idempotencyKey" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -24,7 +25,7 @@ CREATE TABLE "EmissionsData" (
 );
 
 -- CreateIndex
-CREATE INDEX "EmissionsData_createdAt_idx" ON "EmissionsData"("createdAt");
+CREATE INDEX "EmissionsData_reading_date_idx" ON "EmissionsData"("reading_date");
 
 -- CreateIndex
 CREATE INDEX "EmissionsData_siteId_idx" ON "EmissionsData"("siteId");
