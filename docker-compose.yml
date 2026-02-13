@@ -17,7 +17,6 @@ services:
       timeout: 3s
       retries: 20
 
-  # Optional: candidates can choose to use it for idempotency keys, caching, etc.
   redis:
     image: redis:7-alpine
     container_name: emissions_redis
@@ -31,8 +30,25 @@ services:
       timeout: 3s
       retries: 20
 
-  # Optional: DB admin UI for reviewers/candidates. Safe to keep.
-  # If you don't want extra surface area, remove this service.
+  app:
+    build:
+      context: ./highwoodemissions
+      dockerfile: Dockerfile
+    container_name: emissions_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://emissions:emissions@postgres:5432/emissions
+    volumes:
+      - ./highwoodemissions:/app
+      - /app/node_modules
+      - /app/.next
+
   pgadmin:
     image: dpage/pgadmin4:8
     container_name: emissions_pgadmin

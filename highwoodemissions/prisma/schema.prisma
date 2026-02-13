@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Site {
+  id                     Int           @id @default(autoincrement())
+  name                   String
+  emission_limit         Float         @default(0)
+  metadata               Json          @default("{}")
+  total_emissions_to_date Float         @default(0)
+  emissions              EmissionsData[]
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+}
+
+model EmissionsData {
+  id             Int      @id @default(autoincrement())
+  site           Site     @relation(fields: [siteId], references: [id])
+  siteId         Int
+  emissionsdata  Float
+  reading_date   DateTime
+  idempotencyKey String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([reading_date])
+  @@index([siteId])
+  @@index([idempotencyKey])
+}
